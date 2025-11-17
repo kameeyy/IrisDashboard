@@ -8,7 +8,6 @@ import seaborn as sns
 
 st.set_page_config(page_title="Iris Data Visualization", layout="wide")
 
-# Simple CSS to polish the look
 st.markdown(
     """
     <style>
@@ -41,37 +40,17 @@ def load_data():
 df = load_data()
 
 
-st.sidebar.header("Filter & Plot Options")
+st.sidebar.header("Filter")
 
 species_selected = st.sidebar.multiselect(
     "Select Species",
     options=df["species"].unique(),
     default=list(df["species"].unique())
 )
-
-# Axis selectors
-x_axis = st.sidebar.selectbox("X-axis", options=df.columns[:-1], index=0)
-y_axis = st.sidebar.selectbox("Y-axis", options=df.columns[:-1], index=1)
-
-
-numeric_col = st.sidebar.selectbox("Histogram column", options=df.columns[:-1], index=2)
-
-
-show_pairplot = st.sidebar.checkbox("Show Pairplot (Seaborn)", value=False)
-show_heatmap = st.sidebar.checkbox("Show Correlation Heatmap", value=False)
-
-
 filtered_df = df[df["species"].isin(species_selected)]
 
 
 st.title("Iris Dataset Dashboard")
-st.markdown(
-    "Interactive dashboard to explore the classic **Iris** dataset. "
-    "Use the sidebar to filter species and choose features to visualize."
-)
-st.markdown("---")
-
-
 col1, col2, col3 = st.columns([1,1,1])
 col1.metric("Total rows", len(df))
 col2.metric("Filtered rows", len(filtered_df))
@@ -80,9 +59,13 @@ col3.metric("Unique species", df["species"].nunique())
  
 tab_scatter, tab_distribution, tab_overview = st.tabs(["Scatter", "Distribution", "Overview"])
 
-# 1) Scatter tab
 with tab_scatter:
-    st.subheader(f"Scatter Plot — {x_axis} vs {y_axis}")
+    col1,col2 = st.columns(2)
+    with col1:
+        x_axis = st.selectbox("X-axis", options=df.columns[:-1], index=0)
+    with col2:
+        y_axis = st.selectbox("Y-axis", options=df.columns[:-1], index=1)
+
     @st.cache_data
     def get_scatter(data, x, y):
         fig = px.scatter(
@@ -102,12 +85,11 @@ with tab_scatter:
     fig_scatter = get_scatter(filtered_df, x_axis, y_axis)
     st.plotly_chart(fig_scatter, use_container_width=True)
 
-# 2) Distribution tab
 with tab_distribution:
+    numeric_col = st.selectbox("Histogram column", options=df.columns[:-1], index=2)
     left, right = st.columns(2)
 
     with left:
-        st.subheader(f"Histogram — {numeric_col}")
         @st.cache_data
         def get_hist(data, col):
             fig = px.histogram(
@@ -124,10 +106,8 @@ with tab_distribution:
         fig_hist = get_hist(filtered_df, numeric_col)
         st.plotly_chart(fig_hist, use_container_width=True)
 
-       
-
     with right:
-        st.subheader("Pie Chart — Species Distribution (Filtered)")
+        st.subheader("Species Distribution")
         species_counts = filtered_df["species"].value_counts()
         fig_pie = go.Figure(
             data=[
@@ -142,25 +122,31 @@ with tab_distribution:
         fig_pie.update_traces(hole=0.3)
         st.plotly_chart(fig_pie, use_container_width=True)
 
-# 3) Overview tab
 with tab_overview:
     st.subheader("Dataset Overview & Advanced Plots")
-    st.markdown("Use these to inspect relationships and correlations across all features.")
+    show_pairplot = st.checkbox("Show Pairplot (Seaborn)", value=False)
+    show_heatmap = st.checkbox("Show Correlation Heatmap", value=False)
 
     if show_heatmap:
-        st.markdown("**Correlation Heatmap**")
         @st.cache_data
         def get_corr_heatmap(data):
             corr = data.iloc[:, :-1].corr()
-            fig = px.imshow(corr, text_auto=True, title="Feature Correlation Heatmap")
+            fig = px.imshow(
+                corr,
+                text_auto=True,
+                title="Feature Correlation Heatmap",
+                color_continuous_scale="RdBu",
+                zmin=-1,
+                zmax=1
+            )
             return fig
+
 
         fig_corr = get_corr_heatmap(df)
         st.plotly_chart(fig_corr, use_container_width=True)
 
     if show_pairplot:
-        st.markdown("**Pairplot (This may take a little time)**")
-        # Seaborn pairplot can't be returned as a plotly figure; use matplotlib backend
+        st.subheader ("Pairplot")
         @st.cache_data
         def get_pairplot(data):
             sns.set(style="ticks")
